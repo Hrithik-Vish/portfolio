@@ -18,6 +18,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<script>
+(function() {
+  var d = document.documentElement;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || location.hash) return;
+  d.classList.add('intro-pending');
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  window.scrollTo(0, 0);
+})();
+</script>
 <style>
 :root {
   --bg: #0D0E12;
@@ -827,6 +837,33 @@ button:focus-visible {
   .project-extra { max-height: none; }
 }
 
+/* ---------- Intro typing ---------- */
+h1.hero-name { position: relative; }
+.name-ghost { visibility: hidden; }
+.name-typed { position: absolute; inset: 0; }
+.name-cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 2px;
+  background: var(--accent);
+  vertical-align: -0.12em;
+  animation: cursor-blink 0.9s steps(1) infinite;
+}
+@keyframes cursor-blink { 50% { opacity: 0; } }
+
+nav { transition: opacity 0.6s ease, background-color 0.25s ease, border-color 0.25s ease; }
+body > section, body > footer { transition: opacity 0.7s ease; }
+
+html.intro-pending { overflow: hidden; }
+html.intro-pending .hero-tagline,
+html.intro-pending .hero-links,
+html.intro-pending .hero-status,
+html.intro-pending .hero-now { animation-play-state: paused; }
+html.intro-pending nav { opacity: 0; pointer-events: none; }
+html.intro-pending body > section,
+html.intro-pending body > footer { opacity: 0; }
+
 /* ---------- Print ---------- */
 @media print {
   nav, .modal-backdrop, .resume-backdrop, #scrollProgress, .back-to-top, .project-expand-btn { display: none !important; }
@@ -1144,6 +1181,43 @@ button:focus-visible {
 </div>
 
 <script>
+(function() {
+  var html = document.documentElement;
+  if (!html.classList.contains('intro-pending')) return;
+  var h1 = document.querySelector('h1.hero-name');
+  if (!h1) { html.classList.remove('intro-pending'); return; }
+
+  var full = h1.textContent.trim();
+  h1.setAttribute('aria-label', full);
+  h1.innerHTML = '<span class="name-ghost" aria-hidden="true"></span>' +
+    '<span class="name-typed" aria-hidden="true"><span class="name-text"></span><span class="name-cursor"></span></span>';
+  h1.querySelector('.name-ghost').textContent = full;
+  var textEl = h1.querySelector('.name-text');
+
+  var finished = false;
+  function finish() {
+    if (finished) return;
+    finished = true;
+    h1.removeAttribute('aria-label');
+    h1.textContent = full;
+    html.classList.remove('intro-pending');
+  }
+
+  var i = 0;
+  function typeNext() {
+    if (finished) return;
+    if (i < full.length) {
+      i++;
+      textEl.textContent = full.slice(0, i);
+      setTimeout(typeNext, full.charAt(i - 1) === ' ' ? 150 : 45 + Math.random() * 50);
+    } else {
+      setTimeout(finish, 650);
+    }
+  }
+  setTimeout(typeNext, 600);
+  setTimeout(finish, 8000); // safety net: never leave the page hidden
+})();
+
 (function() {
   var root = document.documentElement;
   var toggle = document.getElementById('themeToggle');
