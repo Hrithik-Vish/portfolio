@@ -1382,6 +1382,7 @@ html.intro-pending body > footer { opacity: 0; }
   var copyFeedback = document.getElementById('modalCopyFeedback');
   var pendingUrl = null;
   var pendingCopyValue = null;
+  var isMobile = window.matchMedia && window.matchMedia('(max-width: 640px), (pointer: coarse)').matches;
 
   var contacts = {
     github: {
@@ -1396,8 +1397,10 @@ html.intro-pending body > footer { opacity: 0; }
     },
     email: {
       label: 'Email',
-      url: 'https://mail.google.com/mail/?view=cm&fs=1&to=hrithik.hv10@gmail.com',
+      url: 'https://mail.google.com/mail/?extsrc=mailto&url=' + encodeURIComponent('mailto:hrithik.hv10@gmail.com'),
       body: 'Open Gmail to compose a message to <strong>hrithik.hv10@gmail.com</strong>?',
+      mobileUrl: 'mailto:hrithik.hv10@gmail.com',
+      mobileBody: 'Open your mail app to write to <strong>hrithik.hv10@gmail.com</strong>?',
       copyValue: 'hrithik.hv10@gmail.com'
     },
     phone: {
@@ -1426,10 +1429,10 @@ html.intro-pending body > footer { opacity: 0; }
   function openModal(key) {
     var c = contacts[key];
     if (!c) return;
-    pendingUrl = c.url;
+    pendingUrl = (isMobile && c.mobileUrl) ? c.mobileUrl : c.url;
     pendingCopyValue = c.copyValue || null;
     title.textContent = 'Leaving this page';
-    body.innerHTML = c.body;
+    body.innerHTML = (isMobile && c.mobileBody) ? c.mobileBody : c.body;
     copyBtn.style.display = pendingCopyValue ? '' : 'none';
     copyFeedback.style.display = 'none';
     backdrop.classList.add('open');
@@ -1448,7 +1451,10 @@ html.intro-pending body > footer { opacity: 0; }
   });
 
   confirmBtn.addEventListener('click', function() {
-    if (pendingUrl) window.open(pendingUrl, '_blank', 'noopener');
+    if (pendingUrl) {
+      if (pendingUrl.indexOf('mailto:') === 0) window.location.href = pendingUrl;
+      else window.open(pendingUrl, '_blank', 'noopener');
+    }
     closeModal();
   });
   copyBtn.addEventListener('click', function() {
