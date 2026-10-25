@@ -59,7 +59,8 @@
    Content comes from projects.js (window.PROJECTS).
    NOTE: this block must stay ABOVE the resume and contact popup blocks. All three
    listen for Escape; this one runs first so that Escape closes a popup stacked on
-   top of the project view before it closes the project view itself. */
+   top of the project view before it closes the project view itself.
+   (The flowchart viewer block below must stay after this one, for the same reason.) */
 (function() {
   var projects = window.PROJECTS || [];
   var byId = {};
@@ -121,7 +122,8 @@
   var closeBtn = document.getElementById('detailClose');
   var statsHost = document.getElementById('detailStats');
   var textHost = document.getElementById('detailText');
-  var stepsHost = document.getElementById('detailSteps');
+  var diagramHost = document.getElementById('detailDiagram');
+  var diagramIdx = 0;
   var tagsHost = document.getElementById('detailTags');
   var linksHost = document.getElementById('detailLinks');
   var toggleBtns = Array.prototype.slice.call(document.querySelectorAll('.mode-toggle button'));
@@ -132,10 +134,11 @@
   var openedViaApp = false;   // true when we pushed the #hash ourselves (so Back can close it)
 
   function isOpen() { return backdrop.classList.contains('open'); }
-  function popupOpen() {
-    var a = document.getElementById('modalBackdrop');
-    var b = document.getElementById('resumeBackdrop');
-    return !!((a && a.classList.contains('open')) || (b && b.classList.contains('open')));
+  function popupOpen() {   // anything stacked on top of the project view
+    return ['modalBackdrop', 'resumeBackdrop', 'flowBackdrop'].some(function(id) {
+      var n = document.getElementById(id);
+      return !!(n && n.classList.contains('open'));
+    });
   }
 
   function renderMode(p) {
@@ -154,6 +157,94 @@
     });
   }
 
+  function renderDiagram(p) {
+    diagramHost.textContent = '';
+    var list = p.diagrams || [];
+    if (!list.length) return;
+    if (diagramIdx >= list.length) diagramIdx = 0;
+    var dg = list[diagramIdx];
+
+    if (list.length > 1) {
+      var tabs = el('div', 'flow-tabs');
+      tabs.setAttribute('role', 'group');
+      tabs.setAttribute('aria-label', 'Diagram');
+      list.forEach(function(item, i) {
+        var b = el('button', 'flow-tab', item.label);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', i === diagramIdx ? 'true' : 'false');
+        if (item.tag) b.appendChild(el('span', 'flow-tab-tag', item.tag));
+        b.addEventListener('click', function() {
+          diagramIdx = i;
+          renderDiagram(p);
+          var pressed = diagramHost.querySelector('.flow-tab[aria-pressed="true"]');
+          if (pressed) pressed.focus();
+        });
+        tabs.appendChild(b);
+      });
+      diagramHost.appendChild(tabs);
+    }
+
+    if (dg.caption) diagramHost.appendChild(el('p', 'flow-caption', dg.caption));
+
+    var hasPlanned = dg.nodes.some(function(n) {
+      return n.planned || (n.exit && n.exit.tone === 'planned');
+    });
+    if (hasPlanned) {
+      var legend = el('div', 'flow-legend');
+      var built = el('span'); built.appendChild(el('i')); built.appendChild(document.createTextNode('built'));
+      var todo = el('span'); todo.appendChild(el('i', 'planned')); todo.appendChild(document.createTextNode('still to be made'));
+      legend.appendChild(built);
+      legend.appendChild(todo);
+      diagramHost.appendChild(legend);
+    }
+
+    var ol = el('ol', 'flow');
+    ol.setAttribute('aria-label', dg.label);
+    var prevWasNode = false;
+    var prevArrow = '';
+    dg.nodes.forEach(function(n) {
+      if (n.divider) {
+        ol.appendChild(el('li', 'flow-divider', n.divider));
+        prevWasNode = false;
+        prevArrow = '';
+        return;
+      }
+      if (prevWasNode) {
+        var ar = el('li', 'flow-arrow');
+        ar.setAttribute('aria-hidden', 'true');
+        if (prevArrow) ar.appendChild(el('span', 'flow-arrow-label', prevArrow));
+        ol.appendChild(ar);
+      }
+      var li = el('li', 'flow-node' + (n.io ? ' io' : '') + (n.planned ? ' planned' : ''));
+      var head = el('div', 'flow-node-head');
+      head.appendChild(el('span', 'flow-node-title', n.title));
+      if (n.tag) head.appendChild(el('span', 'flow-tag', n.tag));
+      if (n.planned) head.appendChild(el('span', 'flow-tag planned', 'planned'));
+      li.appendChild(head);
+      if (n.sub) li.appendChild(el('p', 'flow-node-sub', n.sub));
+      if (n.exit) {
+        var ex = el('div', 'flow-exit ' + (n.exit.tone || 'neutral'));
+        ex.appendChild(el('span', 'flow-exit-label', '\u21b3 ' + n.exit.label));
+        ex.appendChild(el('span', 'flow-exit-text', n.exit.text));
+        li.appendChild(ex);
+      }
+      ol.appendChild(li);
+      prevWasNode = true;
+      prevArrow = n.arrow || '';
+    });
+    diagramHost.appendChild(ol);
+
+    if (dg.note) diagramHost.appendChild(el('p', 'flow-note', dg.note));
+    if (dg.image) {
+      var vb = el('button', 'p-open flow-view-btn', 'View full flowchart \u2197');
+      vb.type = 'button';
+      vb.setAttribute('data-flow-src', dg.image);
+      vb.setAttribute('data-flow-title', p.title + ' \u2014 ' + dg.label);
+      vb.setAttribute('data-flow-alt', dg.imageAlt || (p.title + ' flowchart'));
+      diagramHost.appendChild(vb);
+    }
+  }
+
   function renderProject(p) {
     titleEl.textContent = p.title;
     badgeEl.textContent = p.badge || '';
@@ -164,15 +255,7 @@
 
     renderMode(p);
 
-    stepsHost.textContent = '';
-    (p.steps || []).forEach(function(step, i) {
-      var row = el('div', 'pipeline-step' + (step.planned ? ' planned' : ''));
-      row.appendChild(el('span', 'pipeline-num', (i < 9 ? '0' : '') + (i + 1)));
-      row.appendChild(el('span', 'pipeline-step-name', step.name));
-      row.appendChild(el('span', 'pipeline-step-desc', step.desc));
-      if (step.planned) row.appendChild(el('span', 'pipeline-tag', 'in progress'));
-      stepsHost.appendChild(row);
-    });
+    renderDiagram(p);
 
     tagsHost.textContent = '';
     tagsHost.appendChild(tagsNode(p));
@@ -191,6 +274,7 @@
     if (!p) return;
     if (isOpen() && currentId === id) return;
     currentId = id;
+    diagramIdx = 0;
     renderProject(p);
     backdrop.classList.add('open');
     backdrop.setAttribute('aria-hidden', 'false');
@@ -270,6 +354,85 @@
   });
 
   route();   // a shared link like /#geocoderz opens straight into the project
+})();
+
+/* ---------- Full flowchart viewer ----------
+   NOTE: keep this block AFTER the projects block (same Escape-order reason as above). */
+(function() {
+  var backdrop = document.getElementById('flowBackdrop');
+  if (!backdrop) return;
+  var img = document.getElementById('flowImg');
+  var titleEl = document.getElementById('flowTitle');
+  var scrollEl = document.getElementById('flowScroll');
+  var zoomBtn = document.getElementById('flowZoom');
+  var tabLink = document.getElementById('flowOpenTab');
+  var closeBtn = document.getElementById('flowClose');
+  var lastOpener = null;
+  var pushed = false;   // true while we hold a history entry, so the phone Back button closes the viewer
+
+  function isOpen() { return backdrop.classList.contains('open'); }
+  function higherPopupOpen() {
+    return ['modalBackdrop', 'resumeBackdrop'].some(function(id) {
+      var n = document.getElementById(id);
+      return !!(n && n.classList.contains('open'));
+    });
+  }
+  function setZoom(on) {
+    scrollEl.classList.toggle('zoomed', on);
+    zoomBtn.textContent = on ? 'Fit to width' : 'Actual size';
+    zoomBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  function open(src, title, alt, opener) {
+    lastOpener = opener || null;
+    img.alt = alt || '';
+    img.src = src;               // loaded only now, so the page itself stays light
+    titleEl.textContent = title || 'Flowchart';
+    tabLink.href = src;
+    setZoom(false);
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    scrollEl.scrollTop = 0;
+    scrollEl.scrollLeft = 0;
+    closeBtn.focus();
+    try { history.pushState({ flow: 1 }, '', location.href); pushed = true; } catch (err) { pushed = false; }
+  }
+  function hide() {
+    if (!isOpen()) return;
+    backdrop.classList.remove('open');
+    backdrop.setAttribute('aria-hidden', 'true');
+    img.removeAttribute('src');
+    pushed = false;
+    if (lastOpener && document.body.contains(lastOpener)) lastOpener.focus();
+    lastOpener = null;
+  }
+  function requestClose() {
+    if (!isOpen()) return;
+    if (pushed) history.back(); else hide();   // back() -> popstate -> hide()
+  }
+
+  window.addEventListener('popstate', function() { if (isOpen()) hide(); });
+  document.addEventListener('click', function(e) {
+    var t = e.target.closest ? e.target.closest('[data-flow-src]') : null;
+    if (!t) return;
+    e.preventDefault();
+    open(t.getAttribute('data-flow-src'), t.getAttribute('data-flow-title'), t.getAttribute('data-flow-alt'), t);
+  });
+  closeBtn.addEventListener('click', requestClose);
+  zoomBtn.addEventListener('click', function() { setZoom(!scrollEl.classList.contains('zoomed')); });
+  backdrop.addEventListener('click', function(e) { if (e.target === backdrop) requestClose(); });
+
+  document.addEventListener('keydown', function(e) {
+    if (!isOpen() || higherPopupOpen()) return;
+    if (e.key === 'Escape') {
+      requestClose();
+    } else if (e.key === 'Tab') {
+      var items = [zoomBtn, tabLink, closeBtn].filter(function(n) { return n.offsetParent !== null || n === closeBtn; });
+      var first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
 })();
 
 (function() {

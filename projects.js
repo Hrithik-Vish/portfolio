@@ -13,8 +13,22 @@
     tags       tech tags
     simple     plain-language description (for non-technical readers)
     technical  list of paragraphs; light HTML allowed (<strong>, <code>)
-    steps      "how it works" list; planned: true marks a part still being built
+    diagrams   one or more flow diagrams shown under "how it works" (tabs appear if there are 2+)
     links      buttons in the detail view; `contact` must be a key in main.js `contacts`
+
+  A diagram
+    id, label     tab name; `tag` adds a small badge to the tab (e.g. "planned")
+    caption       one line shown above the diagram
+    image         optional full flowchart image, opened by "View full flowchart"
+    note          optional small footnote under the diagram
+    nodes         the boxes, top to bottom:
+        { title, sub }                 a normal step
+        tag                            small label on the box (e.g. "cache level 1")
+        io: true                       highlight as a start/end point
+        planned: true                  dashed box = not built yet
+        arrow: 'label'                 text on the arrow leaving this box
+        exit: { label, text, tone }    a side branch; tone = good | warn | planned | neutral
+        { divider: 'text' }            a labelled break (e.g. "for each site")
 */
 window.PROJECTS = [
   {
@@ -47,11 +61,42 @@ window.PROJECTS = [
         'Out-of-scope queries degrade gracefully via a local-to-Nominatim fallback, returning a stated reason ' +
         'instead of a silently wrong coordinate.'
     ],
-    steps: [
-      { name: 'Extraction', desc: 'Pull candidate place names from free-text incident reports' },
-      { name: 'Normalization', desc: 'Standardize spelling variants and informal naming' },
-      { name: 'Candidate lookup', desc: 'Match against a 780K+ row local gazetteer, cached' },
-      { name: 'Disambiguation', desc: 'Resolve same-named places via region hints and spatial proximity' }
+    diagrams: [
+      {
+        id: 'request-flow',
+        label: 'Request flow',
+        caption: 'What happens to every text sent to POST /resolve, one place name at a time.',
+        image: 'images/geocoderz-flow.webp',
+        imageAlt: 'Full GeoCoderZ backend flowchart',
+        nodes: [
+          { io: true, title: 'POST /resolve',
+            sub: 'Receives the text and logs a resolution_requests row (position tracking starts here). spaCy then pulls out the place-name spans.' },
+          { divider: 'for each extracted name' },
+          { title: 'Fast-path check', tag: 'cache level 1',
+            sub: 'Looks the raw name up in the raw_name_fast_path view.',
+            arrow: 'miss',
+            exit: { label: 'hit', tone: 'good', text: 'Use the stored result directly. Skips cleanup, lookup and disambiguation.' } },
+          { title: 'rapidfuzz cleanup',
+            sub: 'Normalizes spelling and matches known aliases.' },
+          { title: 'Resolved-places check', tag: 'cache level 2',
+            sub: 'Does the cleaned name already exist in resolved_places?',
+            arrow: 'miss',
+            exit: { label: 'hit', tone: 'good', text: 'Reuse the existing resolution. Skips lookup and disambiguation, and writes a new raw_name_aliases row.' } },
+          { title: 'Local GeoNames lookup',
+            sub: 'Searches the local 780K+ row gazetteer first.',
+            arrow: 'not found',
+            exit: { label: 'found', tone: 'neutral', text: 'Skips the fallback and goes straight to disambiguation.' } },
+          { title: 'Nominatim fallback', tag: 'India-scoped',
+            sub: 'Only used when the local lookup finds nothing.',
+            arrow: 'found',
+            exit: { label: 'not found', tone: 'warn', text: 'Marks this one name as failed. It is not cached, so it gets a fresh retry next time.' } },
+          { title: 'Disambiguate & store',
+            sub: 'Scores the candidates by population, proximity and region hints, and returns a confidence and a reason. Then writes a new resolved_places row, followed by a new raw_name_aliases row.' },
+          { divider: 'all names done' },
+          { io: true, title: 'Response assembly',
+            sub: 'Combines every name\u2019s result using its original position in the text, and returns JSON per the API contract.' }
+        ]
+      }
     ],
     links: [
       { label: 'Live demo \u2197', contact: 'geocoderz-demo' },
@@ -72,10 +117,11 @@ window.PROJECTS = [
     tags: ['Python', 'PostgreSQL', 'Supabase', 'Telegram Bot API', 'GitHub Actions'],
     simple:
       'Fans of manga, manhwa and web novels keep refreshing sites to check for new chapters. ' +
-      'ScrollPing checks many of those sites automatically on a schedule, and it\u2019s being built to send ' +
-      'a Telegram message when a followed series updates. It runs entirely on free services, and one broken ' +
-      'website can\u2019t stop it from checking the others. Before building it this way, a 51-hour test confirmed ' +
-      'that free hosting wouldn\u2019t get blocked by those sites. It worked on all 6, every time.',
+      'ScrollPing checks many of those sites automatically, and it\u2019s being built to run on a schedule ' +
+      'and send a Telegram message when a followed series updates. It\u2019s designed to run entirely on free ' +
+      'services, and one broken website can\u2019t stop it from checking the others. Before building it this way, ' +
+      'a 51-hour test confirmed that free hosting wouldn\u2019t get blocked by those sites. It worked on all 6, ' +
+      'every time.',
     technical: [
       'A scraper and Telegram bot being built to track manga/manhwa/novel releases across multiple sites and ' +
         'notify subscribers, designed to run entirely on free-tier infrastructure. A 51-hour empirical test ' +
@@ -88,11 +134,69 @@ window.PROJECTS = [
         'anti-bot proxy. Network/DB failures retry with <strong>backoff</strong>; per-site isolation means one ' +
         'broken source never halts the run.'
     ],
-    steps: [
-      { name: 'Fetch', desc: 'Poll manga/manhwa/novel aggregator sites on a schedule' },
-      { name: 'Parse', desc: 'Extract new chapter data, including fractional numbers' },
-      { name: 'Isolate & retry', desc: 'Retry network/DB failures with backoff, per-site isolation' },
-      { name: 'Notify', desc: 'Push updates to subscribers via Telegram', planned: true }
+    diagrams: [
+      {
+        id: 'backend',
+        label: 'Backend pipeline',
+        caption: 'One scraper run, from schedule to notifications. Solid boxes are built; dashed boxes are still to be made.',
+        image: 'images/scrollping-backend-flow.webp',
+        imageAlt: 'Full ScrollPing backend flowchart',
+        note: 'Later (V2): a per-site pass/fail table to spot sites that keep failing, and multi-language MangaDex support.',
+        nodes: [
+          { planned: true, title: 'Scheduled trigger',
+            sub: 'A GitHub Actions cron job, with pytest and CI/CD gating every deploy. Free-tier IP viability is already tested: 6 sites, 100% pass.' },
+          { title: 'main.py starts',
+            sub: 'Loads each site\u2019s parse rules once, reads the site list from the websites table, and opens a scraper_logs row marked \u201cfail\u201d until the run finishes.',
+            exit: { label: 'if the log insert fails', tone: 'planned', text: 'Abort and alert. To be made; not handled yet.' } },
+          { divider: 'for each site' },
+          { title: 'Fetch the page',
+            sub: 'fetch_html wrapped in retry(), with a User-Agent always set.',
+            exit: { label: 'retries exhausted', tone: 'warn', text: 'Returns an empty list for this site. Non-fatal: it is tried again next run.' } },
+          { title: 'Parse chapter links',
+            sub: 'HTML sites (asura, hivetoons, kunmanga, vortex): a keyword and number regex returns candidate chapter links.',
+            exit: { label: 'to be made', tone: 'planned', text: 'MangaDex JSON dispatch, and BeautifulSoup selectors for mgeko.' } },
+          { title: 'Compare with the database',
+            sub: 'Fetches this site\u2019s tracked novels. A pure function (no I/O) then matches links to novels, extracts chapter numbers, keeps the highest per novel, and diffs against a snapshot of each novel\u2019s latest chapter.',
+            exit: { label: 'nothing parsed, or fetch fails', tone: 'warn', text: 'Returns an empty list for this site.' } },
+          { divider: 'all sites done' },
+          { title: 'Update the novels table',
+            sub: 'One batched update with every novel that has a newer chapter.',
+            exit: { label: 'if the update fails', tone: 'warn', text: 'The run ends and its scraper_logs row stays \u201cfail\u201d.' } },
+          { title: 'Find subscribers',
+            sub: 'Builds a lookup by novel_id, then one bulk Supabase query for users with reading_status = \u201creading\u201d, including their telegram_user_id.' },
+          { planned: true, title: 'Batch and send Telegram messages',
+            sub: 'Group the updates per user and send one message each.',
+            exit: { label: 'if a send fails', tone: 'planned', text: 'Retry and failure handling is still to be made. Today a missed ping would be a silent miss.' } },
+          { io: true, title: 'Mark the run successful',
+            sub: 'scraper_logs flips to \u201csuccess\u201d as the very last step of the run.' }
+        ]
+      },
+      {
+        id: 'user-flow',
+        label: 'User flow',
+        tag: 'planned',
+        caption: 'How a reader would use ScrollPing. Most of this is still to be made; the scraper behind it is the part that exists today.',
+        image: 'images/scrollping-user-flow.webp',
+        imageAlt: 'Full ScrollPing user flowchart',
+        note: 'Later (V2): scaling beyond solo use to hundreds of users, more than 6 supported sites, and multi-language chapters.',
+        nodes: [
+          { planned: true, io: true, title: 'Landing page',
+            sub: 'What ScrollPing does, which sites it supports, and a Start button.' },
+          { planned: true, title: 'Sign up and link Telegram',
+            sub: 'The user opens the bot, and the bot captures their telegram_user_id into the users table. Returning users just log in.' },
+          { planned: true, title: 'Dashboard: my tracked novels',
+            sub: 'Search or browse novels across the 6 supported sites, request one that is missing, choose a reading status, pause, or unsubscribe.' },
+          { title: 'user_subscriptions table', tag: 'database',
+            sub: 'Stores user_id, novel_id and reading_status. Every scraper run reads it, and only \u201creading\u201d novels get pings.' },
+          { title: 'Scraper run',
+            sub: 'The backend pipeline checks each site for new chapters.',
+            arrow: 'new chapter found' },
+          { planned: true, title: 'Telegram ping',
+            sub: 'One batched message per user with the novel, chapter number and link. If nothing is new, nothing is sent.' },
+          { planned: true, io: true, title: 'The reader reacts',
+            sub: 'Tap the link to read on the source site, ignore it (the next run only pings newer chapters), or use bot buttons to mute, mark as read, or change status.' }
+        ]
+      }
     ],
     links: [
       { label: 'GitHub \u2197', contact: 'scrollping-github' }

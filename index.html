@@ -196,19 +196,34 @@
     </div>
     <div class="detail-scroll" id="detailScroll">
       <div id="detailStats"></div>
-      <div class="mode-toggle" role="group" aria-label="Description style">
-        <button type="button" data-mode="simple" aria-pressed="true">Simple</button>
-        <button type="button" data-mode="technical" aria-pressed="false">Technical</button>
+      <div class="mode-row">
+        <span class="mode-label">explain it:</span>
+        <div class="mode-toggle" role="group" aria-label="Description style">
+          <button type="button" data-mode="simple" aria-pressed="true">Simple</button>
+          <button type="button" data-mode="technical" aria-pressed="false">Technical</button>
+        </div>
       </div>
       <div class="detail-text" id="detailText"></div>
       <div>
         <div class="detail-block-label"><span>#</span> how it works</div>
-        <div class="pipeline" id="detailSteps"></div>
+        <div id="detailDiagram"></div>
       </div>
       <div id="detailTags"></div>
       <div class="project-links" id="detailLinks"></div>
     </div>
   </div>
+</div>
+
+<div class="flow-backdrop" id="flowBackdrop" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="flowTitle">
+  <div class="flow-bar">
+    <span class="flow-bar-title" id="flowTitle"></span>
+    <div class="flow-bar-actions">
+      <button type="button" id="flowZoom" aria-pressed="false">Actual size</button>
+      <a id="flowOpenTab" target="_blank" rel="noopener" href="#">Open image ↗</a>
+      <button type="button" id="flowClose" aria-label="Close flowchart">&times;</button>
+    </div>
+  </div>
+  <div class="flow-scroll" id="flowScroll"><img id="flowImg" alt=""></div>
 </div>
 
 <div class="modal-backdrop" id="modalBackdrop">
