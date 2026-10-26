@@ -1156,3 +1156,27 @@ html.detail-open { overflow: hidden; }
   section { break-inside: avoid; border-bottom-color: #ccc; }
   .reveal { opacity: 1 !important; transform: none !important; }
 }
+
+/* ---------- Project gallery + case study (detail view) ---------- */
+.gallery-row { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0 8px; -webkit-overflow-scrolling: touch; }
+.gallery-item {
+  flex: 0 0 auto; width: 200px; padding: 0; text-align: left; cursor: pointer;
+  background: var(--surface-raised); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text-secondary); font: inherit; overflow: hidden;
+  transition: border-color .15s ease;
+}
+.gallery-item:hover, .gallery-item:focus-visible { border-color: var(--accent); }
+.gallery-item img { display: block; width: 100%; height: 125px; object-fit: cover; object-position: top; background: var(--surface); }
+.gallery-cap { display: block; padding: 8px 10px; font-size: 12px; line-height: 1.4; }
+.case-list { margin: 0; display: grid; grid-template-columns: 1fr; gap: 2px 0; }
+.case-list dt {
+  margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--accent);
+}
+.case-list dd { margin: 2px 0 0; font-size: 14px; line-height: 1.65; color: var(--text-secondary); }
+@media (min-width: 900px) {
+  .case-list { grid-template-columns: 110px 1fr; gap: 10px 16px; }
+  .case-list dt { margin-top: 3px; }
+  .case-list dd { margin: 0; }
+  .gallery-item { width: 230px; }
+}

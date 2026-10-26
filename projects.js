@@ -13,6 +13,8 @@
     tags       tech tags
     simple     plain-language description (for non-technical readers)
     technical  list of paragraphs; light HTML allowed (<strong>, <code>)
+    caseStudy  { problem, constraint, decision, result, resultLabel? } short plain text; resultLabel defaults to "result"
+    gallery    list of { src, thumb, label, alt }; opens in the full-size image viewer
     diagrams   one or more flow diagrams shown under "how it works" (tabs appear if there are 2+)
     links      buttons in the detail view; `contact` must be a key in main.js `contacts`
 
@@ -61,6 +63,22 @@ window.PROJECTS = [
         'Out-of-scope queries degrade gracefully via a local-to-Nominatim fallback, returning a stated reason ' +
         'instead of a silently wrong coordinate.'
     ],
+    gallery: [
+      { src: 'images/geomapai-workspace.webp', thumb: 'images/thumb-geomapai-workspace.webp', label: 'GeoMapAI workspace: a real run',
+        alt: 'GeoMapAI workspace after a run: 19 locations found, 12 resolved, 7 need review, 73% average confidence' },
+      { src: 'images/geomapai-map.webp', thumb: 'images/thumb-geomapai-map.webp', label: 'Resolved places on the map',
+        alt: 'GeoMapAI map view with 12 resolved locations plotted across India' },
+      { src: 'images/geomapai-landing.webp', thumb: 'images/thumb-geomapai-landing.webp', label: 'GeoMapAI landing page',
+        alt: 'GeoMapAI landing page: find every affected place without reading every report' },
+      { src: 'images/geocoderz-flow.webp', thumb: 'images/thumb-geocoderz-flow.webp', label: 'GeoCoderZ backend flowchart',
+        alt: 'GeoCoderZ backend request flowchart' }
+    ],
+    caseStudy: {
+      problem: 'Incident reports name towns and landmarks without enough context to say which place is meant, and many names are shared by several places.',
+      constraint: 'A wrong match is worse than admitting doubt, so every answer needs a confidence and a reason. It also had to run against a 780K+ row local gazetteer without leaning on an external geocoder.',
+      decision: 'Check two caches first, then the local gazetteer, and use India-scoped Nominatim only as a fallback (failed lookups are not cached). Ambiguous names are scored on population, proximity and region hints, not \u201cbiggest wins\u201d.',
+      result: 'Repeat-lookup latency went from 2813 ms to 1391 ms, and a 21-case test suite covers unit and live paths. The GeoMapAI screenshots show a real run: 19 places found, 12 resolved, 7 flagged for review.'
+    },
     diagrams: [
       {
         id: 'request-flow',
@@ -134,6 +152,21 @@ window.PROJECTS = [
         'anti-bot proxy. Network/DB failures retry with <strong>backoff</strong>; per-site isolation means one ' +
         'broken source never halts the run.'
     ],
+    gallery: [
+      { src: 'images/scrollping-logo.webp', thumb: 'images/thumb-scrollping-logo.webp', label: 'ScrollPing logo (in development)',
+        alt: 'ScrollPing logo marked in development' },
+      { src: 'images/scrollping-backend-flow.webp', thumb: 'images/thumb-scrollping-backend-flow.webp', label: 'Backend pipeline flowchart',
+        alt: 'ScrollPing backend pipeline flowchart, built and planned steps' },
+      { src: 'images/scrollping-user-flow.webp', thumb: 'images/thumb-scrollping-user-flow.webp', label: 'Planned user flow flowchart',
+        alt: 'ScrollPing planned user flow flowchart' }
+    ],
+    caseStudy: {
+      problem: 'Readers keep revisiting several manga, manhwa and novel sites to check whether a new chapter is out.',
+      constraint: 'Free-tier services only, and third-party sites that can change or fail at any time.',
+      decision: 'Test before paying: a 51-hour, 18-run test on free GitHub Actions showed no IP blocking on 6 sites, so no paid proxy. Each site is fetched and parsed on its own with retries, so one broken site does not stop the rest.',
+      resultLabel: 'status',
+      result: 'In progress. Built: fetch with retry, parsing for 4 sites, comparison against the database, novel updates, subscriber lookup and run logs. Still to be made: the scheduled run, Telegram delivery, the remaining parsers and the user-facing flow.'
+    },
     diagrams: [
       {
         id: 'backend',

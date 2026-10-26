@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://portfolio-hrithik-vishs-projects.vercel.app/sitemap.xml
